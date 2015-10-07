@@ -334,7 +334,7 @@ class BuildHX {
 		try {
 			
 			xml = new Fast (Xml.parse (File.getContent (inputFile)).firstElement ());
-			
+
 		} catch (e:Dynamic) {
 			
 			error ("\"" + inputFile + "\" contains invalid XML data\n", false);
@@ -790,6 +790,21 @@ class BuildHX {
 		
 	}
 	
+	private static function readDirectoryXMLsRecursive (path : String, results : Array<String>) {
+		if (!FileSystem.exists(path)) {
+			return;
+		}
+		for (p in FileSystem.readDirectory(path)) {
+			var newPath = path + "/" + p;
+			if (FileSystem.isDirectory(newPath)) {
+				readDirectoryXMLsRecursive (newPath, results);
+			} else if (p.substr(p.length-3) == "xml") {
+				results.push (newPath);
+			} else {
+				trace (p);
+			}
+		}
+	}
 	
 	private static function parseXML (xml:Fast):Void {
 		
@@ -873,6 +888,27 @@ class BuildHX {
 					libraryName = element.att.name;
 					parserName = element.att.type;
 				
+				case "include":
+
+					if (FileSystem.exists (element.att.path) && FileSystem.isDirectory(element.att.path)) {
+						var xmlFiles = [];
+						readDirectoryXMLsRecursive (element.att.path, xmlFiles);
+						for (inputFile in xmlFiles) {
+							var xml:Fast = null;
+							try {
+								xml = new Fast (Xml.parse (File.getContent (inputFile)).firstElement ());
+							} catch (e:Dynamic) {
+								error ("\"" + inputFile + "\" contains invalid XML data\n", false);
+								#if !neko
+									throw e;
+								#else
+									neko.Lib.rethrow(e);
+								#end
+							}
+							parseXML (xml);
+						}
+					}
+
 			}
 			
 		}
